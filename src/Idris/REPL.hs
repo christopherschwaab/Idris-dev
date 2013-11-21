@@ -197,6 +197,7 @@ ideslaveProcess fn (UnsetOpt ShowImpl) = do process fn (UnsetOpt ShowImpl)
                                             iResult ""
 ideslaveProcess fn (SetOpt x) = process fn (SetOpt x)
 ideslaveProcess fn (UnsetOpt x) = process fn (UnsetOpt x)
+ideslaveProcess fn (Find x) = process fn (Find x)
 ideslaveProcess fn _ = iFail "command not recognized or not supported"
 
 
@@ -315,7 +316,7 @@ process fn (Eval t)
                       let tm' = normaliseAll ctxt [] tm
                       let ty' = normaliseAll ctxt [] ty
                       -- Add value to context, call it "it"
-                      updateContext (addCtxtDef (UN "it") (Function ty' tm'))
+                      updateContext (addCtxtDef (FC "" 0) (UN "it") (Function ty' tm'))
                       logLvl 3 $ "Raw: " ++ show (tm', ty')
                       logLvl 10 $ "Debug: " ++ showEnvDbg [] tm'
                       imp <- impShow
@@ -571,6 +572,8 @@ process fn ColourOn = do ist <- getIState
                          putIState $ ist { idris_colourRepl = True }
 process fn ColourOff = do ist <- getIState
                           putIState $ ist { idris_colourRepl = False }
+process fn (Find n) = do i <- getIState
+                         iResult ("Matches:\n\t" ++ show (map fst . lookupFCDef n $ tt_ctxt i))
 
 
 classInfo :: ClassInfo -> Idris ()

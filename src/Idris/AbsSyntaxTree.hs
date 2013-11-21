@@ -240,6 +240,7 @@ data Command = Quit
              | SetColour ColourType IdrisColour
              | ColourOn
              | ColourOff
+             | Find Name
 
 data Opt = Filename String
          | Ver

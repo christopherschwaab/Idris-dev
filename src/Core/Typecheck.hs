@@ -214,25 +214,26 @@ check' holes ctxt env top = chk env top where
             = return (Bind n (PVTy t) scv, sct)
 
 
+-- FIXME what should the FC's be?
 checkProgram :: Context -> RProgram -> TC Context
 checkProgram ctxt [] = return ctxt
 checkProgram ctxt ((n, RConst t) : xs) 
    = do (t', tt') <- trace (show n) $ check ctxt [] t
         isType ctxt [] tt'
-        checkProgram (addTyDecl n Ref t' ctxt) xs
+        checkProgram (addTyDecl (FC "" 0) n Ref t' ctxt) xs
 checkProgram ctxt ((n, RFunction (RawFun ty val)) : xs)
    = do (ty', tyt') <- trace (show n) $ check ctxt [] ty
         (val', valt') <- check ctxt [] val
         isType ctxt [] tyt'
         converts ctxt [] ty' valt'
-        checkProgram (addToCtxt n val' ty' ctxt) xs
+        checkProgram (addToCtxt (FC "" 0) n val' ty' ctxt) xs
 checkProgram ctxt ((n, RData (RDatatype _ ty cons)) : xs)
    = do (ty', tyt') <- trace (show n) $ check ctxt [] ty
         isType ctxt [] tyt'
         -- add the tycon temporarily so we can check constructors
-        let ctxt' = addDatatype (Data n 0 ty' []) ctxt
+        let ctxt' = addDatatype (FC "" 0) (Data n 0 ty' []) ctxt
         cons' <- mapM (checkCon ctxt') cons
-        checkProgram (addDatatype (Data n 0 ty' cons') ctxt) xs
+        checkProgram (addDatatype (FC "" 0) (Data n 0 ty' cons') ctxt) xs
   where checkCon ctxt (n, cty) = do (cty', ctyt') <- check ctxt [] cty
                                     return (n, cty')
 

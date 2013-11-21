@@ -42,7 +42,7 @@ recheckC fc env t
 
 checkDef fc ns = do ctxt <- getContext
                     mapM (\(n, t) -> do (t', _) <- recheckC fc [] t
-                                        return (n, t')) ns
+                                        return (fc, n, t')) ns
 
 -- | Elaborate a top-level type declaration - for example, "foo : Int -> Int".
 elabType :: ElabInfo -> SyntaxInfo -> String ->
@@ -131,7 +131,7 @@ elabData info syn doc fc codata (PLaterdecl n t_in)
          mapM_ (elabCaseBlock info []) is
          (cty, _)  <- recheckC fc [] t'
          logLvl 2 $ "---> " ++ show cty
-         updateContext (addTyDecl n (TCon 0 0) cty) -- temporary, to check cons
+         updateContext (addTyDecl fc n (TCon 0 0) cty) -- temporary, to check cons
 
 elabData info syn doc fc codata (PDatadecl n t_in dcons)
     = do iLOG (show fc)
@@ -149,7 +149,7 @@ elabData info syn doc fc codata (PDatadecl n t_in dcons)
          (cty, _)  <- recheckC fc [] t'
          logLvl 2 $ "---> " ++ show cty
          -- temporary, to check cons
-         when undef $ updateContext (addTyDecl n (TCon 0 0) cty) 
+         when undef $ updateContext (addTyDecl fc n (TCon 0 0) cty) 
          cons <- mapM (elabCon info syn n codata) dcons
          ttag <- getName
          i <- getIState
@@ -163,7 +163,7 @@ elabData info syn doc fc codata (PDatadecl n t_in dcons)
          addDocStr n doc
          addIBC (IBCDoc n)
          collapseCons n cons
-         updateContext (addDatatype (Data n ttag cty cons))
+         updateContext (addDatatype fc (Data n ttag cty cons))
          mapM_ (checkPositive n) cons
   where 
         -- parameters are names which are unchanged across the structure,
@@ -219,17 +219,19 @@ elabData info syn doc fc codata (PDatadecl n t_in dcons)
 -- | Elaborate primitives
 
 elabPrims :: Idris ()
-elabPrims = do mapM_ (elabDecl EAll toplevel)
-                     (map (PData "" defaultSyntax (FC "builtin" 0) False)
-                         [inferDecl, unitDecl, falseDecl, pairDecl, eqDecl])
-               mapM_ elabPrim primitives
-               -- Special case prim__believe_me because it doesn't work on just constants
-               elabBelieveMe
-               -- Finally, syntactic equality
-               elabSynEq
-    where elabPrim :: Prim -> Idris ()
+elabPrims
+    = do mapM_ (elabDecl EAll toplevel)
+                   (map (PData "" defaultSyntax builtinFC False)
+                       [inferDecl, unitDecl, falseDecl, pairDecl, eqDecl])
+         mapM_ elabPrim primitives
+         -- Special case prim__believe_me because it doesn't work on just constants
+         elabBelieveMe
+         -- Finally, syntactic equality
+         elabSynEq
+    where builtinFC = FC "builtin" 0
+          elabPrim :: Prim -> Idris ()
           elabPrim (Prim n ty i def sc tot)
-              = do updateContext (addOperator n ty i (valuePrim def))
+              = do updateContext (addOperator builtinFC n ty i (valuePrim def))
                    setTotality n tot
                    i <- getIState
                    putIState i { idris_scprims = (n, sc) : idris_scprims i }
@@ -248,7 +250,7 @@ elabPrims = do mapM_ (elabDecl EAll toplevel)
                          (Bind (UN "x") (Pi (V 1)) (V 1)))
           elabBelieveMe 
              = do let prim__believe_me = (UN "prim__believe_me")
-                  updateContext (addOperator prim__believe_me believeTy 3 p_believeMe)
+                  updateContext (addOperator builtinFC prim__believe_me believeTy 3 p_believeMe)
                   setTotality prim__believe_me (Partial NotCovering)
                   i <- getIState
                   putIState i {
@@ -275,7 +277,7 @@ elabPrims = do mapM_ (elabDecl EAll toplevel)
           elabSynEq 
              = do let synEq = UN "prim__syntactic_eq"
 
-                  updateContext (addOperator synEq synEqTy 4 p_synEq)
+                  updateContext (addOperator builtinFC synEq synEqTy 4 p_synEq)
                   setTotality synEq (Total [])
                   i <- getIState
                   putIState i {
@@ -659,7 +661,7 @@ elabClauses info fc opts n_in cs = let n = liftname info n_in in
                                                 (idris_patdefs ist) })
            let caseInfo = CaseInfo (inlinable opts) (dictionary opts)
            case lookupTy n ctxt of
-               [ty] -> do updateContext (addCasedef n caseInfo
+               [ty] -> do updateContext (addCasedef fc n caseInfo
                                                        tcase knowncovering 
                                                        reflect
                                                        (AssertTotal `elem` opts)

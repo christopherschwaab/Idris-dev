@@ -23,7 +23,7 @@ import Debug.Trace
 import Paths_idris
 
 ibcVersion :: Word8
-ibcVersion = 39
+ibcVersion = 40
 
 data IBCFile = IBCFile { ver :: Word8,
                          sourcefile :: FilePath,
@@ -47,7 +47,7 @@ data IBCFile = IBCFile { ver :: Word8,
                          ibc_total :: [(Name, Totality)],
                          ibc_flags :: [(Name, [FnOpt])],
                          ibc_cg :: [(Name, CGInfo)],
-                         ibc_defs :: [(Name, Def)],
+                         ibc_defs :: [(FC, Name, Def)],
                          ibc_docstrings :: [(Name, String)],
                          ibc_transforms :: [(Term, Term)],
                          ibc_coercions :: [Name]
@@ -119,8 +119,8 @@ ibc i (IBCLib tgt n) f = return f { ibc_libs = (tgt, n) : ibc_libs f }
 ibc i (IBCCGFlag tgt n) f = return f { ibc_cgflags = (tgt, n) : ibc_cgflags f }
 ibc i (IBCDyLib n) f = return f {ibc_dynamic_libs = n : ibc_dynamic_libs f }
 ibc i (IBCHeader tgt n) f = return f { ibc_hdrs = (tgt, n) : ibc_hdrs f }
-ibc i (IBCDef n) f = case lookupDef n (tt_ctxt i) of
-                        [v] -> return f { ibc_defs = (n,v) : ibc_defs f     }
+ibc i (IBCDef n) f = case lookupFCDef n (tt_ctxt i) of
+                        [(fc, v)] -> return f { ibc_defs = (fc, n,v) : ibc_defs f     }
                         _ -> fail "IBC write failed"
 ibc i (IBCDoc n) f = case lookupCtxt n (idris_docstrings i) of
                         [v] -> return f { ibc_docstrings = (n,v) : ibc_docstrings f }
@@ -277,11 +277,11 @@ pDyLibs ls = do res <- mapM (addDyLib . return) ls
 pHdrs :: [(Codegen, String)] -> Idris ()
 pHdrs hs = mapM_ (uncurry addHdr) hs
 
-pDefs :: [(Name, Def)] -> Idris ()
-pDefs ds = mapM_ (\ (n, d) -> 
+pDefs :: [(FC, Name, Def)] -> Idris ()
+pDefs ds = mapM_ (\ (fc, n, d) -> 
                      do i <- getIState
                         logLvl 5 $ "Added " ++ show (n, d)
-                        putIState (i { tt_ctxt = addCtxtDef n d (tt_ctxt i) }))
+                        putIState (i { tt_ctxt = addCtxtDef fc n d (tt_ctxt i) }))
                  ds       
 
 pDocs :: [(Name, String)] -> Idris ()

@@ -50,7 +50,8 @@ processCommand (Tac e)  state
                                    if (not (done ps')) 
                                       then (state { prf = Just ps' }, resp)
                                       else (state { prf = Nothing,
-                                                    ctxt = addToCtxt (thname ps')
+                                                    ctxt = addToCtxt (FC "" 0)
+                                                                     (thname ps')
                                                                      (pterm ps')
                                                                      (ptype ps')
                                                                      (context ps') }, resp)
